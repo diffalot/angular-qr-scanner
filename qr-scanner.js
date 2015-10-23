@@ -1,9 +1,6 @@
 if (require){
   if (!angular) var angular = require('angular');
-  if (!QrCode) var QrCode = require('qrcode-reader');
-  var qrcode = new QrCode();
-  console.log('qrcode', qrcode.decode)
-
+  if (!qrcode) var qrcode = require('jsqrcode')();
 }
 
 (function() {
@@ -25,9 +22,12 @@ angular.module('qrScanner', ["ng"]).directive('qrScanner', ['$interval', '$windo
       var height = attrs.height || 300;
       var width = attrs.width || 250;
 
+      var result
+
       var video = $window.document.createElement('video');
       video.setAttribute('width', width);
       video.setAttribute('height', height);
+      video.setAttribute('autoplay','');
       video.setAttribute('style', '-moz-transform:rotateY(-180deg);-webkit-transform:rotateY(-180deg);transform:rotateY(-180deg);');
       var canvas = $window.document.createElement('canvas');
       canvas.setAttribute('id', 'qr-canvas');
@@ -42,13 +42,16 @@ angular.module('qrScanner', ["ng"]).directive('qrScanner', ['$interval', '$windo
 
       var scan = function() {
         if ($window.localMediaStream) {
-          context.drawImage(video, 0, 0, height, width);
+          context.drawImage(video, 0, 0);
           try {
             console.log('scanning')
-            qrcode.decode();
+            result = qrcode.decode(canvas);
+            if (result) {
+              qrcode.callback(result)
+            }
           } catch(e) {
-            scope.ngError({error: e});
             console.log('error', e)
+            scope.ngError({error: e});
           }
         }
       }
@@ -59,7 +62,7 @@ angular.module('qrScanner', ["ng"]).directive('qrScanner', ['$interval', '$windo
 
         scope.video = video;
         video.play();
-        stopScan = $interval(scan, 500);
+        stopScan = $interval(scan, 1500);
       }
 
       // Call the getUserMedia method with our callback functions
@@ -72,7 +75,7 @@ angular.module('qrScanner', ["ng"]).directive('qrScanner', ['$interval', '$windo
       }
 
       qrcode.callback = function(data) {
-        scope.ngSuccess({data: data});
+        scope.ngSuccess({data: result});
       };
 
       element.bind('$destroy', function() {
